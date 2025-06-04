@@ -17,12 +17,71 @@ export default function Summary() {
   const [selectedManager, setSelectedManager] = useState(null);
   const [selectedManagerCategory, setSelectedManagerCategory] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [periodFilter, setPeriodFilter] = useState('all'); // 'all', '1year', '6months', '3months', '2months', '1month'
+  const [periodFilter, setPeriodFilter] = useState('all'); // 'all', '1year', '6months', '3months', '2months', '1month', 'custom'
   const [filteredData, setFilteredData] = useState([]);
+  
+  // 커스텀 날짜 상태 추가
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [isCustomMode, setIsCustomMode] = useState(false);
 
   useEffect(() => {
     loadSummaryData();
-  }, [periodFilter]);
+  }, [periodFilter, customStartDate, customEndDate]);
+
+  // 날짜를 YYYY-MM-DD 형식으로 포맷하는 함수
+  const formatDateForInput = (date) => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // 기간 필터 변경 핸들러
+  const handlePeriodFilterChange = (filter) => {
+    setPeriodFilter(filter);
+    setIsCustomMode(filter === 'custom');
+    
+    if (filter !== 'custom') {
+      // 기본 필터의 경우 날짜 자동 설정
+      const now = new Date();
+      const endDate = formatDateForInput(now);
+      let startDate = '';
+      
+      switch (filter) {
+        case '1year':
+          const oneYearAgo = new Date(now);
+          oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+          startDate = formatDateForInput(oneYearAgo);
+          break;
+        case '6months':
+          const sixMonthsAgo = new Date(now);
+          sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+          startDate = formatDateForInput(sixMonthsAgo);
+          break;
+        case '3months':
+          const threeMonthsAgo = new Date(now);
+          threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+          startDate = formatDateForInput(threeMonthsAgo);
+          break;
+        case '2months':
+          const twoMonthsAgo = new Date(now);
+          twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+          startDate = formatDateForInput(twoMonthsAgo);
+          break;
+        case '1month':
+          const oneMonthAgo = new Date(now);
+          oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+          startDate = formatDateForInput(oneMonthAgo);
+          break;
+        default:
+          startDate = '';
+      }
+      
+      setCustomStartDate(startDate);
+      setCustomEndDate(endDate);
+    }
+  };
 
   const loadSummaryData = async () => {
     try {
@@ -31,39 +90,47 @@ export default function Summary() {
       const projects = await projectsRes.json();
       
       // 기간 필터링
-      const now = new Date();
       let startDate = null;
+      let endDate = null;
       
-      switch (periodFilter) {
-        case '1year':
-          startDate = new Date(now);
-          startDate.setFullYear(startDate.getFullYear() - 1);
-          break;
-        case '6months':
-          startDate = new Date(now);
-          startDate.setMonth(startDate.getMonth() - 6);
-          break;
-        case '3months':
-          startDate = new Date(now);
-          startDate.setMonth(startDate.getMonth() - 3);
-          break;
-        case '2months':
-          startDate = new Date(now);
-          startDate.setMonth(startDate.getMonth() - 2);
-          break;
-        case '1month':
-          startDate = new Date(now);
-          startDate.setMonth(startDate.getMonth() - 1);
-          break;
-        default:
-          startDate = null;
+      if (periodFilter === 'custom' && customStartDate && customEndDate) {
+        startDate = new Date(customStartDate);
+        endDate = new Date(customEndDate);
+        endDate.setHours(23, 59, 59, 999); // 해당 날짜의 마지막 시간으로 설정
+      } else if (periodFilter !== 'all') {
+        const now = new Date();
+        endDate = now;
+        
+        switch (periodFilter) {
+          case '1year':
+            startDate = new Date(now);
+            startDate.setFullYear(startDate.getFullYear() - 1);
+            break;
+          case '6months':
+            startDate = new Date(now);
+            startDate.setMonth(startDate.getMonth() - 6);
+            break;
+          case '3months':
+            startDate = new Date(now);
+            startDate.setMonth(startDate.getMonth() - 3);
+            break;
+          case '2months':
+            startDate = new Date(now);
+            startDate.setMonth(startDate.getMonth() - 2);
+            break;
+          case '1month':
+            startDate = new Date(now);
+            startDate.setMonth(startDate.getMonth() - 1);
+            break;
+        }
       }
       
       // 프로젝트 필터링 - 검수일자 기준
-      const filteredProjects = startDate 
+      const filteredProjects = (startDate && endDate) 
         ? projects.filter(p => {
             if (!p.inspectionDate) return false;
-            return new Date(p.inspectionDate) >= startDate;
+            const projectDate = new Date(p.inspectionDate);
+            return projectDate >= startDate && projectDate <= endDate;
           })
         : projects;
       
@@ -333,45 +400,25 @@ export default function Summary() {
   };
 
   const getDateRange = () => {
-    const now = new Date();
-    let startDate = null;
-    
-    switch (periodFilter) {
-      case '1year':
-        startDate = new Date(now);
-        startDate.setFullYear(startDate.getFullYear() - 1);
-        break;
-      case '6months':
-        startDate = new Date(now);
-        startDate.setMonth(startDate.getMonth() - 6);
-        break;
-      case '3months':
-        startDate = new Date(now);
-        startDate.setMonth(startDate.getMonth() - 3);
-        break;
-      case '2months':
-        startDate = new Date(now);
-        startDate.setMonth(startDate.getMonth() - 2);
-        break;
-      case '1month':
-        startDate = new Date(now);
-        startDate.setMonth(startDate.getMonth() - 1);
-        break;
-      default:
-        return '';
-    }
-    
-    if (startDate) {
-      const formatDate = (date) => {
+    if (periodFilter === 'custom' && customStartDate && customEndDate) {
+      const formatCustomDate = (dateStr) => {
+        const date = new Date(dateStr);
         const year = date.getFullYear().toString().slice(-2);
         const month = (date.getMonth() + 1).toString().padStart(2, '0');
         const day = date.getDate().toString().padStart(2, '0');
         return `${year}-${month}-${day}`;
       };
-      
-      return `${formatDate(startDate)} ~ ${formatDate(now)}`;
+      return `${formatCustomDate(customStartDate)} ~ ${formatCustomDate(customEndDate)}`;
+    } else if (periodFilter !== 'all' && customStartDate && customEndDate) {
+      const formatDate = (dateStr) => {
+        const date = new Date(dateStr);
+        const year = date.getFullYear().toString().slice(-2);
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      return `${formatDate(customStartDate)} ~ ${formatDate(customEndDate)}`;
     }
-    
     return '';
   };
 
@@ -411,7 +458,7 @@ export default function Summary() {
         <div className="flex items-center justify-between mb-2">
           <div className="flex space-x-1">
             <button
-              onClick={() => setPeriodFilter('all')}
+              onClick={() => handlePeriodFilterChange('all')}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                 periodFilter === 'all'
                   ? 'bg-blue-500 text-white'
@@ -421,7 +468,7 @@ export default function Summary() {
               전체
             </button>
             <button
-              onClick={() => setPeriodFilter('1year')}
+              onClick={() => handlePeriodFilterChange('1year')}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                 periodFilter === '1year'
                   ? 'bg-blue-500 text-white'
@@ -431,7 +478,7 @@ export default function Summary() {
               1년
             </button>
             <button
-              onClick={() => setPeriodFilter('6months')}
+              onClick={() => handlePeriodFilterChange('6months')}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                 periodFilter === '6months'
                   ? 'bg-blue-500 text-white'
@@ -441,7 +488,7 @@ export default function Summary() {
               6개월
             </button>
             <button
-              onClick={() => setPeriodFilter('3months')}
+              onClick={() => handlePeriodFilterChange('3months')}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                 periodFilter === '3months'
                   ? 'bg-blue-500 text-white'
@@ -451,7 +498,7 @@ export default function Summary() {
               3개월
             </button>
             <button
-              onClick={() => setPeriodFilter('2months')}
+              onClick={() => handlePeriodFilterChange('2months')}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                 periodFilter === '2months'
                   ? 'bg-blue-500 text-white'
@@ -461,7 +508,7 @@ export default function Summary() {
               2개월
             </button>
             <button
-              onClick={() => setPeriodFilter('1month')}
+              onClick={() => handlePeriodFilterChange('1month')}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                 periodFilter === '1month'
                   ? 'bg-blue-500 text-white'
@@ -470,9 +517,41 @@ export default function Summary() {
             >
               1개월
             </button>
+            <button
+              onClick={() => handlePeriodFilterChange('custom')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                periodFilter === 'custom'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              직접 입력
+            </button>
           </div>
-          <div className="text-sm text-gray-500">
-            {getDateRange()}
+          
+          {/* 날짜 표시 및 입력 영역 */}
+          <div className="flex items-center space-x-2">
+            {isCustomMode ? (
+              <div className="flex items-center space-x-2">
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="px-3 py-1 border border-gray-300 rounded text-sm"
+                />
+                <span className="text-gray-500">~</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="px-3 py-1 border border-gray-300 rounded text-sm"
+                />
+              </div>
+            ) : (
+              <div className="text-sm text-gray-500">
+                {getDateRange()}
+              </div>
+            )}
           </div>
         </div>
       </div>

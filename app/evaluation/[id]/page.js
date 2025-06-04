@@ -13,8 +13,8 @@ export default function IndividualEvaluation() {
     전체점수: { total: 0, max: 0, percentage: 0 }
   });
   const [loading, setLoading] = useState(true);
+  const [selectedManager, setSelectedManager] = useState('전체'); // 기본값을 '전체'로 설정
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [selectedCategoryManager, setSelectedCategoryManager] = useState(null);
 
   useEffect(() => {
     loadProjectEvaluation();
@@ -118,8 +118,7 @@ export default function IndividualEvaluation() {
     const summary = {
       대분류별: {},
       중분류별: {},
-      담당자별: {},
-      전체점수: { total: 0, max: 0, percentage: 0 }
+      담당자별: {}
     };
     
     let totalScore = 0;
@@ -239,6 +238,36 @@ export default function IndividualEvaluation() {
     router.push('/');
   };
 
+  // 선택된 담당자에 따른 전체 점수 계산
+  const getSelectedManagerScore = () => {
+    if (selectedManager === '전체') {
+      return summaryData.전체점수;
+    } else {
+      const managerData = summaryData.담당자별[selectedManager];
+      if (managerData) {
+        const percentage = managerData.최대점수합 > 0 
+          ? (managerData.점수합 / managerData.최대점수합 * 100).toFixed(1) 
+          : 0;
+        return {
+          total: managerData.점수합,
+          max: managerData.최대점수합,
+          percentage: percentage
+        };
+      }
+    }
+    return { total: 0, max: 0, percentage: 0 };
+  };
+
+  // 선택된 담당자에 따른 대분류별 데이터 가져오기
+  const getSelectedManagerCategories = () => {
+    if (selectedManager === '전체') {
+      return summaryData.대분류별;
+    } else {
+      const managerData = summaryData.담당자별[selectedManager];
+      return managerData ? managerData.대분류별 : {};
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -254,6 +283,9 @@ export default function IndividualEvaluation() {
       </div>
     );
   }
+
+  const selectedScore = getSelectedManagerScore();
+  const selectedCategories = getSelectedManagerCategories();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -282,35 +314,94 @@ export default function IndividualEvaluation() {
         </div>
       </header>
 
-      {/* 전체 점수 */}
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">전체 평가 점수</h2>
+        {/* 1. 담당자 선택 (맨 위로 이동) */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">담당자별 평가 보기</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {/* 전체 버튼 */}
+            <button
+              onClick={() => {
+                setSelectedManager('전체');
+                setSelectedCategory(null);
+              }}
+              className={`p-3 rounded-lg border text-center transition-colors ${
+                selectedManager === '전체'
+                  ? 'bg-blue-500 text-white border-blue-500'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <div className="font-medium">전체 인원</div>
+              <div className="text-sm opacity-80">
+                {summaryData.전체점수.total}/{summaryData.전체점수.max}
+              </div>
+              <div className="text-xs opacity-70">
+                ({summaryData.전체점수.percentage}%)
+              </div>
+            </button>
+
+            {/* 각 담당자 버튼 */}
+            {Object.entries(summaryData.담당자별).map(([manager, data]) => {
+              const percentage = data.최대점수합 > 0 
+                ? (data.점수합 / data.최대점수합 * 100).toFixed(1) 
+                : 0;
+              
+              return (
+                <button
+                  key={manager}
+                  onClick={() => {
+                    setSelectedManager(manager);
+                    setSelectedCategory(null);
+                  }}
+                  className={`p-3 rounded-lg border text-center transition-colors ${
+                    selectedManager === manager
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="font-medium truncate" title={manager}>
+                    {manager}
+                  </div>
+                  <div className="text-sm opacity-80">
+                    {data.점수합}/{data.최대점수합}
+                  </div>
+                  <div className="text-xs opacity-70">
+                    ({percentage}%)
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 2. 선택된 담당자의 전체 점수 */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">
+            {selectedManager === '전체' ? '전체 인원' : selectedManager} - 전체 평가 점수
+          </h2>
           <div className="flex items-baseline space-x-6">
             <div className="text-4xl font-bold text-blue-600">
-              {summaryData.전체점수.total}/{summaryData.전체점수.max}
+              {selectedScore.total}/{selectedScore.max}
             </div>
             <div className="text-3xl font-semibold text-gray-600">
-              ({summaryData.전체점수.percentage}%)
+              ({selectedScore.percentage}%)
             </div>
             <div className="flex-1">
               <div className="h-6 bg-gray-200 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-blue-500 transition-all duration-500"
-                  style={{ width: `${summaryData.전체점수.percentage}%` }}
+                  style={{ width: `${selectedScore.percentage}%` }}
                 />
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 pb-6">
-        {/* 업무별 집계 */}
+        {/* 3. 선택된 담당자의 업무별 집계 */}
         <div className="space-y-4">
           {/* 대분류 카드 */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {Object.entries(summaryData.대분류별).map(([category, data]) => {
+            {Object.entries(selectedCategories).map(([category, data]) => {
               const percentage = data.최대점수합 > 0 
                 ? (data.점수합 / data.최대점수합 * 100).toFixed(1) 
                 : 0;
@@ -338,46 +429,45 @@ export default function IndividualEvaluation() {
                       style={{ width: `${percentage}%` }}
                     />
                   </div>
-                  <div className="text-sm text-gray-500 mt-2">
-                    {data.항목수}개 항목 | {Array.from(data.담당자목록).length}명 담당자
-                  </div>
+                  {selectedManager === '전체' && (
+                    <div className="text-sm text-gray-500 mt-2">
+                      {summaryData.대분류별[category]?.항목수}개 항목 | {Array.from(summaryData.대분류별[category]?.담당자목록 || []).length}명 담당자
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
 
-          {/* 선택된 대분류의 담당자별 점수 */}
-          {selectedCategory && summaryData.대분류별[selectedCategory] && (
+          {/* 선택된 대분류의 중분류 상세 */}
+          {selectedCategory && selectedCategories[selectedCategory] && (
             <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-xl font-semibold mb-4">
-                {selectedCategory} - 담당자별 점수
+              <h3 className="text-xl font-semibold mb-1">
+                {selectedCategory} - 중분류별 상세
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
-                {Object.entries(summaryData.담당자별).map(([manager, managerData]) => {
-                  // 해당 대분류에 대한 담당자의 점수 찾기
-                  const categoryData = managerData.대분류별[selectedCategory];
-                  if (!categoryData) return null;
-                  
-                  const percentage = categoryData.최대점수합 > 0 
-                    ? (categoryData.점수합 / categoryData.최대점수합 * 100).toFixed(1) 
+              <p className="text-sm text-gray-500 mb-4">
+                담당자: {selectedManager === '전체' ? '전체 담당자 합산' : selectedManager}
+              </p>
+              <div className="space-y-3">
+                {Object.entries(selectedCategories[selectedCategory].중분류별 || {}).map(([중분류, data]) => {
+                  const percentage = data.최대점수합 > 0 
+                    ? (data.점수합 / data.최대점수합 * 100).toFixed(1) 
                     : 0;
                   
                   return (
-                    <div 
-                      key={manager}
-                      className="bg-white border border-gray-200 rounded p-2 cursor-pointer hover:bg-gray-50 transition-colors"
-                      onClick={() => setSelectedCategoryManager(manager)}
-                    >
-                      <div className="text-xs font-medium text-gray-700 mb-1 truncate" title={manager}>
-                        {manager}
+                    <div key={중분류} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="text-lg font-medium">{중분류}</h4>
+                        <div className="flex items-center space-x-4">
+                          <span className="text-lg font-semibold">
+                            {data.점수합}/{data.최대점수합}
+                          </span>
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(percentage)}`}>
+                            {percentage}%
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-sm font-bold text-blue-600">
-                        {categoryData.점수합}/{categoryData.최대점수합}
-                      </div>
-                      <div className="text-xs text-gray-500 mb-1">
-                        ({percentage}%)
-                      </div>
-                      <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div 
                           className={`h-full transition-all duration-500 ${
                             percentage >= 90 ? 'bg-green-500' :
@@ -387,80 +477,29 @@ export default function IndividualEvaluation() {
                           style={{ width: `${percentage}%` }}
                         />
                       </div>
+                      
+                      {/* 소분류가 있는 경우 */}
+                      {Object.keys(data.소분류별 || {}).length > 0 && (
+                        <div className="mt-3 ml-4 space-y-1">
+                          {Object.entries(data.소분류별 || {}).map(([소분류, 소data]) => {
+                            const 소percentage = 소data.최대점수합 > 0 
+                              ? (소data.점수합 / 소data.최대점수합 * 100).toFixed(1) 
+                              : 0;
+                            
+                            return (
+                              <div key={소분류} className="flex justify-between text-sm text-gray-600">
+                                <span>└ {소분류}</span>
+                                <span className="font-medium">
+                                  {소data.점수합}/{소data.최대점수합} ({소percentage}%)
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
-              </div>
-            </div>
-          )}
-
-          {/* 선택된 대분류의 중분류 상세 */}
-          {selectedCategory && summaryData.대분류별[selectedCategory] && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-xl font-semibold mb-1">
-                {selectedCategory} - 중분류별 상세
-              </h3>
-              <p className="text-sm text-gray-500 mb-4">
-                {selectedCategoryManager ? `담당자: ${selectedCategoryManager}` : '전체 담당자 합산'}
-              </p>
-              <div className="space-y-3">
-                {(() => {
-                  const dataSource = selectedCategoryManager 
-                    ? summaryData.담당자별[selectedCategoryManager]?.대분류별[selectedCategory]?.중분류별 || {}
-                    : summaryData.대분류별[selectedCategory].중분류;
-                  
-                  return Object.entries(dataSource).map(([중분류, data]) => {
-                    const percentage = data.최대점수합 > 0 
-                      ? (data.점수합 / data.최대점수합 * 100).toFixed(1) 
-                      : 0;
-                    
-                    return (
-                      <div key={중분류} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-center mb-2">
-                          <h4 className="text-lg font-medium">{중분류}</h4>
-                          <div className="flex items-center space-x-4">
-                            <span className="text-lg font-semibold">
-                              {data.점수합}/{data.최대점수합}
-                            </span>
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(percentage)}`}>
-                              {percentage}%
-                            </span>
-                          </div>
-                        </div>
-                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full transition-all duration-500 ${
-                              percentage >= 90 ? 'bg-green-500' :
-                              percentage >= 80 ? 'bg-blue-500' :
-                              percentage >= 70 ? 'bg-yellow-500' : 'bg-red-500'
-                            }`}
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                        
-                        {/* 소분류가 있는 경우 */}
-                        {Object.keys(data.소분류 || data.소분류별 || {}).length > 0 && (
-                          <div className="mt-3 ml-4 space-y-1">
-                            {Object.entries(data.소분류 || data.소분류별 || {}).map(([소분류, 소data]) => {
-                              const 소percentage = 소data.최대점수합 > 0 
-                                ? (소data.점수합 / 소data.최대점수합 * 100).toFixed(1) 
-                                : 0;
-                              
-                              return (
-                                <div key={소분류} className="flex justify-between text-sm text-gray-600">
-                                  <span>└ {소분류}</span>
-                                  <span className="font-medium">
-                                    {소data.점수합}/{소data.최대점수합} ({소percentage}%)
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  });
-                })()}
               </div>
             </div>
           )}
