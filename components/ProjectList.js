@@ -28,32 +28,12 @@ export default function ProjectList({ projects, onRefresh }) {
     }
   };
 
-  const handleViewSheet = (project) => {
-    window.location.href = `/sheet/${project.id}`;
+  // 평가 보기 - 개별 프로젝트 평가 집계표
+  const handleViewEvaluation = (project) => {
+    window.location.href = `/evaluation/${project.id}`;
   };
 
-  const handleDownload = async (project) => {
-    try {
-      const response = await fetch(`/api/download/${project.id}`);
-      
-      if (!response.ok) {
-        throw new Error('다운로드 실패');
-      }
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${project.projectName}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('다운로드 오류:', error);
-      alert('다운로드 중 오류가 발생했습니다.');
-    }
-  };
+
 
   const handleDelete = async (project) => {
     if (!confirm(`${project.projectName}을(를) 삭제하시겠습니까?`)) {
@@ -223,18 +203,11 @@ export default function ProjectList({ projects, onRefresh }) {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                   <button
-                    onClick={() => handleViewSheet(project)}
+                    onClick={() => handleViewEvaluation(project)}
                     className="text-blue-600 hover:text-blue-900"
-                    title="시트 보기"
+                    title="평가 보기"
                   >
-                    📋
-                  </button>
-                  <button
-                    onClick={() => handleDownload(project)}
-                    className="text-green-600 hover:text-green-900"
-                    title="다운로드"
-                  >
-                    📥
+                    📊
                   </button>
                   <button
                     onClick={() => handleDelete(project)}
